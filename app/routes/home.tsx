@@ -27,14 +27,85 @@ const SkeletonCard = () => (
   </div>
 );
 
+/* ── Confirmation modal ── */
+interface ConfirmWipeModalProps {
+  count: number;
+  wiping: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const ConfirmWipeModal = ({ count, wiping, onConfirm, onCancel }: ConfirmWipeModalProps) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+    {/* Backdrop */}
+    <div
+      className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+      onClick={!wiping ? onCancel : undefined}
+    />
+
+    {/* Panel */}
+    <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 flex flex-col gap-6 animate-in fade-in-0 zoom-in-95 duration-200">
+      {/* Icon */}
+      <div className="flex items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
+          <span className="text-3xl">🗑️</span>
+        </div>
+      </div>
+
+      {/* Text */}
+      <div className="text-center flex flex-col gap-2">
+        <h2 className="text-xl font-bold text-slate-900">Wipe all data?</h2>
+        <p className="text-sm text-dark-200 leading-relaxed">
+          This will permanently delete{" "}
+          <span className="font-semibold text-slate-800">
+            {count} {count === 1 ? "resume" : "resumes"}
+          </span>{" "}
+          — including all AI feedback and uploaded files. This action{" "}
+          <span className="font-semibold text-red-500">cannot be undone</span>.
+        </p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          disabled={wiping}
+          className="flex-1 border border-gray-200 rounded-full py-3 text-sm font-semibold text-slate-700 hover:bg-gray-50 transition-colors disabled:opacity-40"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={wiping}
+          className="flex-1 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-full py-3 text-sm font-semibold transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+        >
+          {wiping ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              Wiping…
+            </>
+          ) : (
+            "Yes, wipe all"
+          )}
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export default function Home() {
-  const { auth, kv } = usePuterStore();
+  const { auth, kv, fs } = usePuterStore();
   const navigate = useNavigate();
   const location = useLocation();
   const next = location.search.split("next=")[1];
 
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [loadingResumes, setLoadingResumes] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [wiping, setWiping] = useState(false);
 
   /* Redirect unauthenticated users */
   useEffect(() => {
@@ -65,7 +136,6 @@ export default function Home() {
           })
           .filter((r): r is Resume => r !== null);
 
-        /* Newest first — UUIDs don't sort by time, so we rely on list order */
         setResumes(loaded);
       } catch (err) {
         console.error("Failed to load resumes:", err);
@@ -76,11 +146,45 @@ export default function Home() {
     })();
   }, [auth.isAuthenticated]);
 
+  /* ── Wipe all data ── */
+  const handleWipeAll = async () => {
+    setWiping(true);
+    try {
+      await Promise.all(
+        resumes.map(async (resume) => {
+          // Delete PDF + thumbnail from Puter FS (ignore individual failures)
+          await Promise.allSettled([
+            resume.resumePath ? fs.delete(resume.resumePath) : Promise.resolve(),
+            resume.imagePath  ? fs.delete(resume.imagePath)  : Promise.resolve(),
+          ]);
+          // Delete the KV record
+          await kv.delete(`resume_${resume.id}`);
+        })
+      );
+      setResumes([]);
+    } catch (err) {
+      console.error("Wipe failed:", err);
+    } finally {
+      setWiping(false);
+      setShowConfirm(false);
+    }
+  };
+
   const isEmpty = !loadingResumes && resumes.length === 0;
 
   return (
     <main className="bg-[url('/images/bg-main.svg')] bg-cover min-h-screen">
       <Navbar />
+
+      {/* Confirmation modal (portal-style overlay) */}
+      {showConfirm && (
+        <ConfirmWipeModal
+          count={resumes.length}
+          wiping={wiping}
+          onConfirm={handleWipeAll}
+          onCancel={() => setShowConfirm(false)}
+        />
+      )}
 
       {/* ── Hero ── */}
       <section className="main-section mt-6">
@@ -117,24 +221,19 @@ export default function Home() {
 
       {/* ── Resume list section ── */}
       {loadingResumes ? (
-        /* Skeleton grid */
         <section className="resumes-section py-10 px-6">
           {[1, 2, 3].map((n) => (
             <SkeletonCard key={n} />
           ))}
         </section>
       ) : isEmpty ? (
-        /* Empty state */
         <section className="flex flex-col items-center gap-6 py-24 px-6 text-center">
           <div className="primary-gradient w-16 h-16 rounded-2xl flex items-center justify-center shadow-md">
             <span className="text-white text-3xl">📄</span>
           </div>
-          <h3 className="text-2xl font-semibold text-slate-900">
-            No resumes yet
-          </h3>
+          <h3 className="text-2xl font-semibold text-slate-900">No resumes yet</h3>
           <p className="text-dark-200 max-w-sm">
-            Upload your first resume and get instant AI feedback on how to
-            improve it.
+            Upload your first resume and get instant AI feedback on how to improve it.
           </p>
           <Link to="/upload">
             <button className="primary-button w-fit px-8 py-3 text-base">
@@ -143,8 +242,8 @@ export default function Home() {
           </Link>
         </section>
       ) : (
-        /* Real resume cards */
         <section className="resumes-section py-10 px-6">
+          {/* Section header */}
           <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto w-full px-2">
             <h2 className="text-xl font-semibold text-slate-900">
               Your Resumes
@@ -152,12 +251,20 @@ export default function Home() {
                 ({resumes.length} {resumes.length === 1 ? "resume" : "resumes"})
               </span>
             </h2>
-            <Link to="/upload">
-              <button className="primary-button w-fit px-5 py-2 text-sm font-semibold">
-                + New Resume
-              </button>
-            </Link>
+
+            {/* Wipe button */}
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-red-200 text-red-500 text-sm font-semibold hover:bg-red-50 hover:border-red-300 transition-all duration-200"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Wipe all data
+            </button>
           </div>
+
+          {/* Resume cards */}
           {resumes.map((resume) => (
             <ResumeCard key={resume.id} resume={resume} />
           ))}

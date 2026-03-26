@@ -185,10 +185,11 @@ const CategoryCard = ({ categoryKey, category }: CategoryCardProps) => {
 
 const ResumePage = () => {
   const { id }   = useParams<{ id: string }>();
-  const { kv }   = usePuterStore();
+  const { kv, fs } = usePuterStore();
   const [resume, setResume] = useState<Resume | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]   = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -205,6 +206,22 @@ const ResumePage = () => {
       }
     })();
   }, [id]);
+
+  /* Load resume thumbnail from Puter FS once we have the record */
+  useEffect(() => {
+    if (!resume?.imagePath) return;
+    let objectUrl: string | null = null;
+    (async () => {
+      try {
+        const blob = await fs.read(resume.imagePath);
+        if (blob) {
+          objectUrl = URL.createObjectURL(blob as Blob);
+          setImageUrl(objectUrl);
+        }
+      } catch { /* show placeholder on error */ }
+    })();
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [resume?.imagePath]);
 
   /* loading */
   if (loading) {
@@ -261,8 +278,8 @@ const ResumePage = () => {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pb-20 pt-6">
 
-        {/* ── Header ── */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-10">
+        {/* ── Page header ── */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-dark-200 mb-1">
               Resume Feedback
@@ -272,7 +289,7 @@ const ResumePage = () => {
             </h1>
             <p className="text-xl text-dark-200 mt-1">{resume.jobTitle ?? "Position"}</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 shrink-0">
             <Link to="/upload">
               <button className="primary-button w-fit px-6 py-2.5 text-sm">
                 + New Resume
@@ -286,87 +303,116 @@ const ResumePage = () => {
           </div>
         </div>
 
-        {/* ── Overall score hero card ── */}
-        <div className="gradient-border rounded-3xl p-[2px] mb-8">
-          <div className="bg-white rounded-3xl px-8 py-8 flex flex-col md:flex-row items-center gap-8">
+        {/* ── Top two-column: resume image  +  score hero ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 mb-8">
 
-            {/* Score circle */}
-            <div className="flex flex-col items-center gap-2 shrink-0">
-              <ScoreCircle score={feedback.overallScore} />
-              <span className={`text-sm font-semibold ${scoreColor(feedback.overallScore)}`}>
-                {scoreLabel(feedback.overallScore)}
-              </span>
-            </div>
-
-            {/* Score summary */}
-            <div className="flex flex-col gap-3 flex-1">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-dark-200">
-                  Overall ATS Score
-                </p>
-                <p className={`text-5xl font-bold mt-1 ${scoreColor(feedback.overallScore)}`}>
-                  {feedback.overallScore}
-                  <span className="text-2xl text-dark-200 font-normal"> / 100</span>
-                </p>
-              </div>
-
-              {/* Score bar */}
-              <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(feedback.overallScore)}`}
-                  style={{ width: `${feedback.overallScore}%` }}
+          {/* ── Resume image panel ── */}
+          <div className="gradient-border rounded-3xl p-[2px] h-full">
+            <div className="bg-white rounded-3xl overflow-hidden flex flex-col h-full min-h-[400px]">
+              {imageUrl ? (
+                <img
+                  src={imageUrl}
+                  alt="Resume preview"
+                  className="w-full h-full object-cover object-top"
                 />
-              </div>
-
-              <p className="text-sm text-dark-200 max-w-lg">
-                {feedback.overallScore >= 80
-                  ? "Outstanding! Your resume is well-optimised for ATS and human reviewers."
-                  : feedback.overallScore >= 60
-                  ? "Good foundation — a few targeted improvements will significantly boost your chances."
-                  : "There's meaningful room to improve. Follow the tips below to strengthen your resume."}
-              </p>
-            </div>
-
-            {/* Quick stats */}
-            <div className="flex md:flex-col gap-4 shrink-0">
-              <div className="flex flex-col items-center bg-badge-green rounded-2xl px-5 py-3">
-                <span className="text-2xl font-bold text-badge-green-text">{goodCount}</span>
-                <span className="text-xs font-medium text-badge-green-text">Strengths</span>
-              </div>
-              <div className="flex flex-col items-center bg-badge-red rounded-2xl px-5 py-3">
-                <span className="text-2xl font-bold text-badge-red-text">{improveCount}</span>
-                <span className="text-xs font-medium text-badge-red-text">To improve</span>
-              </div>
+              ) : (
+                /* Skeleton while image loads */
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 animate-pulse bg-gray-50">
+                  <span className="text-5xl opacity-20">📄</span>
+                  <span className="text-xs text-dark-200 opacity-40">Loading preview…</span>
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* ── Category score bar overview ── */}
-        <div className="gradient-border rounded-3xl p-[2px] mb-8">
-          <div className="bg-white rounded-3xl px-8 py-6 flex flex-col gap-4">
-            <h2 className="text-base font-semibold text-slate-900">Score Breakdown</h2>
-            <div className="flex flex-col gap-3">
-              {categories.map(([key, cat]) => {
-                const m = CATEGORY_META[key];
-                return (
-                  <div key={key} className="flex items-center gap-4">
-                    <span className="w-6 text-center text-base shrink-0">{m?.icon ?? "📊"}</span>
-                    <span className="w-32 text-sm font-medium text-slate-700 shrink-0">
-                      {m?.label ?? key}
-                    </span>
-                    <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(cat.score)}`}
-                        style={{ width: `${cat.score}%` }}
-                      />
-                    </div>
-                    <span className={`w-10 text-sm font-bold text-right shrink-0 ${scoreColor(cat.score)}`}>
-                      {cat.score}
-                    </span>
+          {/* ── Score hero + quick stats (stacked) ── */}
+          <div className="flex flex-col gap-6">
+
+            {/* Overall score card */}
+            <div className="gradient-border rounded-3xl p-[2px]">
+              <div className="bg-white rounded-3xl px-7 py-7 flex flex-col sm:flex-row items-center gap-6">
+
+                {/* Score circle */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                  <ScoreCircle score={feedback.overallScore} />
+                  <span className={`text-sm font-semibold ${scoreColor(feedback.overallScore)}`}>
+                    {scoreLabel(feedback.overallScore)}
+                  </span>
+                </div>
+
+                {/* Score details */}
+                <div className="flex flex-col gap-3 flex-1 w-full">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-dark-200">
+                      Overall ATS Score
+                    </p>
+                    <p className={`text-5xl font-bold mt-1 ${scoreColor(feedback.overallScore)}`}>
+                      {feedback.overallScore}
+                      <span className="text-2xl text-dark-200 font-normal"> / 100</span>
+                    </p>
                   </div>
-                );
-              })}
+                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(feedback.overallScore)}`}
+                      style={{ width: `${feedback.overallScore}%` }}
+                    />
+                  </div>
+                  <p className="text-sm text-dark-200">
+                    {feedback.overallScore >= 80
+                      ? "Outstanding! Your resume is well-optimised for ATS and human reviewers."
+                      : feedback.overallScore >= 60
+                      ? "Good foundation — a few targeted improvements will significantly boost your chances."
+                      : "There's meaningful room to improve. Follow the tips below to strengthen your resume."}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* Quick stats row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="gradient-border rounded-2xl p-[2px]">
+                <div className="bg-white rounded-2xl px-5 py-4 flex flex-col items-center gap-1">
+                  <span className="text-3xl font-bold text-badge-green-text">{goodCount}</span>
+                  <span className="text-xs font-semibold text-badge-green-text uppercase tracking-wide">Strengths</span>
+                </div>
+              </div>
+              <div className="gradient-border rounded-2xl p-[2px]">
+                <div className="bg-white rounded-2xl px-5 py-4 flex flex-col items-center gap-1">
+                  <span className="text-3xl font-bold text-badge-red-text">{improveCount}</span>
+                  <span className="text-xs font-semibold text-badge-red-text uppercase tracking-wide">To improve</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Score breakdown (moved here to fill the right column) */}
+            <div className="gradient-border rounded-3xl p-[2px] flex-1">
+              <div className="bg-white rounded-3xl px-7 py-6 flex flex-col gap-4 h-full">
+                <h2 className="text-base font-semibold text-slate-900">Score Breakdown</h2>
+                <div className="flex flex-col gap-3">
+                  {categories.map(([key, cat]) => {
+                    const m = CATEGORY_META[key];
+                    return (
+                      <div key={key} className="flex items-center gap-3">
+                        <span className="w-6 text-center text-base shrink-0">{m?.icon ?? "📊"}</span>
+                        <span className="w-28 text-sm font-medium text-slate-700 shrink-0 truncate">
+                          {m?.label ?? key}
+                        </span>
+                        <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${scoreBarColor(cat.score)}`}
+                            style={{ width: `${cat.score}%` }}
+                          />
+                        </div>
+                        <span className={`w-8 text-sm font-bold text-right shrink-0 ${scoreColor(cat.score)}`}>
+                          {cat.score}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
 
