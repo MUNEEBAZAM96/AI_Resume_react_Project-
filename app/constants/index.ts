@@ -235,15 +235,21 @@ export const resumes: Resume[] = [
     jobDescription: string;
     AIResponseFormat: string;
   }) =>
-    `You are an expert in ATS (Applicant Tracking System) and resume analysis.
-    Please analyze and rate this resume and suggest how to improve it.
-    The rating can be low if the resume is bad.
-    Be thorough and detailed. Don't be afraid to point out any mistakes or areas for improvement.
-    If there is a lot to improve, don't hesitate to give low scores. This is to help the user to improve their resume.
-    If available, use the job description for the job user is applying to to give more detailed feedback.
-    If provided, take the job description into consideration.
-    The job title is: ${jobTitle}
-    The job description is: ${jobDescription}
-    Provide the feedback using the following format: ${AIResponseFormat}
-    Return the analysis as a JSON object, without any other text and without the backticks.
-    Do not include any other text or comments.`;
+    `You are a professional resume reviewer and ATS (Applicant Tracking System) expert.
+
+    Carefully read the attached resume and provide a detailed, honest evaluation.
+
+    Guidelines:
+    - Be thorough and critical. Do NOT give inflated scores — if the resume has real weaknesses, reflect that in the scores.
+    - Scores should range from 0–100. A score of 80+ means truly excellent work. Most resumes score between 40–75.
+    - Give 3–4 tips per category. Each tip must be specific to the actual content of the resume, not generic advice.
+    - For "improve" tips, always include a concrete "explanation" of what exactly is wrong and how to fix it.
+    - For "good" tips, highlight a specific strength found in the resume.
+
+    Context:
+    - Target job title: ${jobTitle || "Not specified"}
+    - Job description: ${jobDescription || "Not provided"}
+    ${jobDescription ? "- Use the job description to assess keyword alignment and role fit." : ""}
+
+    Required output format (return ONLY this JSON, no markdown, no backticks, no extra text):
+    ${AIResponseFormat}`;

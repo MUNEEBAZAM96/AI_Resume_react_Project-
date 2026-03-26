@@ -12,7 +12,8 @@
     "routeIdToServerBundleId": {
       "routes/home": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/auth": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
-      "routes/upload": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
+      "routes/upload": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/resume": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
     "routes": {
       "root": {
@@ -44,6 +45,15 @@
         "parentId": "root",
         "file": "app/routes/upload.tsx",
         "path": "/upload",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/resume": {
+        "id": "routes/resume",
+        "parentId": "root",
+        "file": "app/routes/resume.tsx",
+        "path": "/resume/:id",
         "config": {
           "runtime": "nodejs"
         }
@@ -85,6 +95,12 @@
         "parentId": "root",
         "file": "routes/upload.tsx",
         "path": "/upload"
+      },
+      "routes/resume": {
+        "id": "routes/resume",
+        "parentId": "root",
+        "file": "routes/resume.tsx",
+        "path": "/resume/:id"
       }
     },
     "routeDiscovery": {
@@ -112,6 +128,10 @@
           {
             "file": "routes/upload.tsx",
             "path": "/upload"
+          },
+          {
+            "file": "routes/resume.tsx",
+            "path": "/resume/:id"
           }
         ]
       }
