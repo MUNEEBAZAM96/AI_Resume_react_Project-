@@ -78,42 +78,23 @@ const Navbar = () => {
         {/* ── Right side ── */}
         <div className="flex items-center gap-2.5">
 
-          {/* Upload CTA */}
-          {auth.isAuthenticated && (
-            <Link to="/upload" className="hidden sm:block">
-              <button className="primary-button w-fit px-5 py-2 text-sm flex items-center gap-1.5 font-semibold">
-                <span className="text-base leading-none">+</span> New Resume
-              </button>
-            </Link>
-          )}
-
           {/* ── Authenticated: avatar dropdown ── */}
           {auth.isAuthenticated && user ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((o) => !o)}
                 aria-label="Account menu"
-                className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 border transition-all duration-200
+                className={`relative w-10 h-10 rounded-full transition-all duration-200 ring-2
                   ${dropdownOpen
-                    ? "border-indigo-300 shadow-md bg-indigo-50"
-                    : "border-gray-200 bg-white hover:border-indigo-200 hover:shadow-sm"
+                    ? "ring-indigo-400 shadow-lg shadow-indigo-200/50 scale-105"
+                    : "ring-transparent hover:ring-indigo-300 hover:shadow-md hover:scale-105"
                   }`}
               >
-                {/* Avatar */}
-                <div className="primary-gradient w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm shrink-0">
+                <div className="primary-gradient w-full h-full rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm">
                   {initials}
                 </div>
-                {/* Username */}
-                <span className="text-sm font-medium text-slate-800 max-w-[90px] truncate hidden sm:block">
-                  {user.username}
-                </span>
-                {/* Chevron */}
-                <svg
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
+                {/* Online indicator dot */}
+                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
               </button>
 
               {/* Dropdown panel */}
@@ -219,13 +200,6 @@ const Navbar = () => {
                 {label}
               </Link>
             ))}
-            {auth.isAuthenticated && (
-              <Link to="/upload" className="mt-1">
-                <button className="primary-button w-full py-2.5 text-sm font-semibold">
-                  + New Resume
-                </button>
-              </Link>
-            )}
           </nav>
         </div>
       )}

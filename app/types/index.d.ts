@@ -1,3 +1,8 @@
+interface KVItem {
+  key: string;
+  value: string;
+}
+
 interface Job {
     title: string;
     description: string;

@@ -116,7 +116,7 @@ const Upload = () => {
         resumePath,
         feedback,
       };
-      await kv.set(uid, JSON.stringify(resume));
+      await kv.set(`resume_${uid}`, JSON.stringify(resume));
 
       // 6 ─ Navigate to the detail page
       tick("done");

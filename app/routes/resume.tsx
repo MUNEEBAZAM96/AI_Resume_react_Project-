@@ -194,11 +194,9 @@ const ResumePage = () => {
     if (!id) return;
     (async () => {
       try {
-        const raw = await kv.get(id);
+        const raw = await kv.get(`resume_${id}`);
         if (!raw) throw new Error("Resume not found.");
         const parsed = JSON.parse(raw);
-        console.log("📦 KV record loaded:", parsed);
-        console.log("📊 feedback object:", parsed.feedback);
         setResume(parsed);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load resume.");
@@ -379,16 +377,6 @@ const ResumePage = () => {
             <CategoryCard key={key} categoryKey={key} category={category} />
           ))}
         </div>
-
-        {/* ── Debug: raw AI response (remove after confirming data is correct) ── */}
-        <details className="mt-8">
-          <summary className="cursor-pointer text-xs font-mono text-dark-200 hover:text-slate-900 transition-colors select-none">
-            🔍 View raw AI response
-          </summary>
-          <pre className="mt-2 p-4 bg-gray-50 rounded-2xl text-xs font-mono text-slate-700 overflow-x-auto border border-gray-200 whitespace-pre-wrap break-all">
-            {JSON.stringify(feedback, null, 2)}
-          </pre>
-        </details>
 
         {/* ── Bottom actions ── */}
         <div className="flex flex-wrap gap-4 mt-12 justify-center">

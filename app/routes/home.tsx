@@ -1,9 +1,8 @@
+import React, { useEffect, useState } from "react";
 import type { Route } from "./+types/home";
 import Navbar from "../components/nav_bar";
-import { resumes } from "../constants";
 import ResumeCard from "../components/Resume_card";
 import { Link, useNavigate, useLocation } from "react-router";
-import { useEffect } from "react";
 import { usePuterStore } from "../lib/puter";
 
 export function meta({}: Route.MetaArgs) {
@@ -13,16 +12,71 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+/* ── Skeleton card shown while resumes are loading ── */
+const SkeletonCard = () => (
+  <div className="resume-card animate-pulse pointer-events-none select-none">
+    <div className="resume-card-header">
+      <div className="flex flex-col gap-2 flex-1">
+        <div className="h-3 w-20 bg-gray-200 rounded-full" />
+        <div className="h-5 w-36 bg-gray-200 rounded-full" />
+      </div>
+      <div className="w-[100px] h-[100px] rounded-full bg-gray-200 shrink-0" />
+    </div>
+    <div className="flex-1 rounded-xl bg-gray-100 min-h-[180px]" />
+    <div className="h-2 w-full bg-gray-200 rounded-full" />
+  </div>
+);
+
 export default function Home() {
-  const { auth } = usePuterStore();
+  const { auth, kv } = usePuterStore();
   const navigate = useNavigate();
   const location = useLocation();
   const next = location.search.split("next=")[1];
 
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [loadingResumes, setLoadingResumes] = useState(true);
+
+  /* Redirect unauthenticated users */
   useEffect(() => {
     if (!auth.isAuthenticated) navigate("/auth?next=/");
     auth.checkAuthStatus();
   }, [auth.isAuthenticated, next, navigate]);
+
+  /* Fetch all resume records from Puter KV */
+  useEffect(() => {
+    if (!auth.isAuthenticated) return;
+
+    (async () => {
+      setLoadingResumes(true);
+      try {
+        const items = (await kv.list("resume_*", true)) as KVItem[] | undefined;
+        if (!items || items.length === 0) {
+          setResumes([]);
+          return;
+        }
+
+        const loaded = items
+          .map((item) => {
+            try {
+              return JSON.parse(item.value) as Resume;
+            } catch {
+              return null;
+            }
+          })
+          .filter((r): r is Resume => r !== null);
+
+        /* Newest first — UUIDs don't sort by time, so we rely on list order */
+        setResumes(loaded);
+      } catch (err) {
+        console.error("Failed to load resumes:", err);
+        setResumes([]);
+      } finally {
+        setLoadingResumes(false);
+      }
+    })();
+  }, [auth.isAuthenticated]);
+
+  const isEmpty = !loadingResumes && resumes.length === 0;
 
   return (
     <main className="bg-[url('/images/bg-main.svg')] bg-cover min-h-screen">
@@ -37,21 +91,12 @@ export default function Home() {
             resume forward.
           </h2>
 
-          {/* CTA row */}
           <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
             <Link to="/upload">
               <button className="primary-button w-fit px-8 py-3 text-base">
                 Upload a Resume
               </button>
             </Link>
-            {auth.isAuthenticated && (
-              <button
-                onClick={auth.signOut}
-                className="border border-gray-300 rounded-full px-6 py-3 text-sm font-medium text-dark-200 hover:bg-gray-50 transition-colors"
-              >
-                Sign out
-              </button>
-            )}
           </div>
         </div>
 
@@ -70,14 +115,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Resume cards ── */}
-      {resumes.length > 0 ? (
+      {/* ── Resume list section ── */}
+      {loadingResumes ? (
+        /* Skeleton grid */
         <section className="resumes-section py-10 px-6">
-          {resumes.map((resume) => (
-            <ResumeCard key={resume.id} resume={resume} />
+          {[1, 2, 3].map((n) => (
+            <SkeletonCard key={n} />
           ))}
         </section>
-      ) : (
+      ) : isEmpty ? (
         /* Empty state */
         <section className="flex flex-col items-center gap-6 py-24 px-6 text-center">
           <div className="primary-gradient w-16 h-16 rounded-2xl flex items-center justify-center shadow-md">
@@ -95,6 +141,26 @@ export default function Home() {
               Upload Resume
             </button>
           </Link>
+        </section>
+      ) : (
+        /* Real resume cards */
+        <section className="resumes-section py-10 px-6">
+          <div className="flex items-center justify-between mb-6 max-w-6xl mx-auto w-full px-2">
+            <h2 className="text-xl font-semibold text-slate-900">
+              Your Resumes
+              <span className="ml-2 text-sm font-normal text-dark-200">
+                ({resumes.length} {resumes.length === 1 ? "resume" : "resumes"})
+              </span>
+            </h2>
+            <Link to="/upload">
+              <button className="primary-button w-fit px-5 py-2 text-sm font-semibold">
+                + New Resume
+              </button>
+            </Link>
+          </div>
+          {resumes.map((resume) => (
+            <ResumeCard key={resume.id} resume={resume} />
+          ))}
         </section>
       )}
     </main>
